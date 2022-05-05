@@ -1,0 +1,249 @@
+<html>
+    <head>
+        <title>Demonstration</title>
+        <script src="https://d3js.org/d3.v7.min.js"></script>
+    </head>
+    <body>
+        <h1>Demonstration</h1>
+        <input type="button" value="Toggle Boxplot" onclick="handleButton()">
+        <p></p>
+        <script type="text/javascript">
+
+            // global state var
+            let boxplot_on = false;
+
+            // helper functions 
+            function jitter(width){
+                let sign = Math.random() < 0.5 ? -1 : 1;
+                return sign * Math.random() * width;
+            }
+
+            function boxplot(dataset, val){
+                let arr = [];
+                for(let i = 0; i < dataset.length; i++){
+                    if(dataset[i].emperor == val){
+                        arr.push(dataset[i].weight);
+                    }
+                }
+                arr.sort();
+                let stats = [
+                    d3.quantile(arr,0),
+                    d3.quantile(arr,0.25),
+                    d3.quantile(arr,0.5),
+                    d3.quantile(arr,0.75),
+                    d3.quantile(arr,1),
+                ];
+                return stats;
+            }
+
+            let svg_w = 800;
+		    let svg_h = 600;
+		    let bottom_marg = 80;
+		    let left_marg = 100;
+            let right_marg = 80;
+            let top_marg = 80;
+
+            let svg = d3.select("body").append("svg")
+				.attr("width", svg_w)
+				.attr("height", svg_h)
+				.attr("style", "background-color:white");
+
+            //Mock data
+            let dataset = [
+            {weight:15.2,emperor:"Caracalla",mint:"ANTIOCH"},
+            {weight:14.1,emperor:"Caracalla",mint:"ANTIOCH"},
+            {weight:13.6,emperor:"Caracalla",mint:"EMESA"},
+            {weight:13.9,emperor:"Caracalla",mint:"CARRHAE"},
+            {weight:14.0,emperor:"Caracalla",mint:"EMESA"},
+            {weight:15.1,emperor:"Caracalla",mint:"EMESA"},
+            {weight:12.3,emperor:"Macrinus",mint:"ANTIOCH"},
+            {weight:11.9,emperor:"Macrinus",mint:"ANTIOCH"},
+            {weight:12.2,emperor:"Macrinus",mint:"ANTIOCH"},
+            {weight:17.1,emperor:"Elagabalus",mint:"ANTIOCH"},
+            {weight:16.8,emperor:"Elagabalus",mint:"CARRHAE"},
+            {weight:16.9,emperor:"Elagabalus",mint:"CARRHAE"},
+            {weight:16.9,emperor:"Elagabalus",mint:"CARRHAE"},
+            {weight:16.9,emperor:"Elagabalus",mint:"ANTIOCH"},
+            {weight:16.7,emperor:"Elagabalus",mint:"ANTIOCH"}
+            ];
+
+            let emperors = ["Caracalla", "Macrinus", "Elagabalus"];
+
+            console.log(dataset);
+
+            // min and max
+            let min_weight = d3.min(dataset, (d)=> { return d.weight; });
+            let max_weight = d3.max(dataset, (d)=> { return d.weight; });
+
+            // height scaling
+            let y_scale = d3.scaleLinear()
+                .domain([min_weight, max_weight])
+                .range([svg_h - bottom_marg, top_marg]);
+
+            // width scaling 
+            let x_scale = d3.scaleBand()
+                .domain(emperors)
+                .range([left_marg, svg_w - right_marg])
+                .paddingInner(0.1)
+                .paddingOuter(0.1);
+
+            // points
+            svg.selectAll("circle")
+                .data(dataset)
+                .enter()
+                .append("circle")
+                .attr("cx", (d) => {
+                    return x_scale(d.emperor) + (x_scale.bandwidth()/2) + jitter(x_scale.bandwidth()/10);
+                })
+                .attr("cy", (d) => {
+                    return y_scale(d.weight); 
+                })
+                .attr("r", 4)
+                .attr("fill", "black")
+                .on("mouseover", handleMouseover)
+                .on("mouseout", handleMouseout);
+
+            // box and whiskers
+            for(let i = 0; i < emperors.length; i++){
+                let emp = emperors[i];
+                let stats = boxplot(dataset, emp);
+                console.log(stats);
+                svg.append("rect")
+                    .datum(stats)
+                    .attr("x", x_scale(emp))
+                    .attr("y", y_scale(stats[2]))
+                    .attr("width", x_scale.bandwidth())
+                    .attr("height", y_scale(stats[1]) - y_scale(stats[2]))
+                    .attr("class","bp")
+                    .on("mouseover",handleBoxplotMouseover)
+                    .on("mouseout", handleMouseout);
+
+                svg.append("rect")
+                    .datum(stats)
+                    .attr("x", x_scale(emp))
+                    .attr("y", y_scale(stats[3]))
+                    .attr("width", x_scale.bandwidth())
+                    .attr("height", y_scale(stats[2]) - y_scale(stats[3]))
+                    .attr("class","bp")
+                    .on("mouseover",handleBoxplotMouseover)
+                    .on("mouseout", handleMouseout);
+
+                svg.append("line")
+                    .datum(stats)
+                    .attr("x1",x_scale(emp) + (x_scale.bandwidth()/2))
+                    .attr("x2",x_scale(emp) + (x_scale.bandwidth()/2))
+                    .attr("y1",y_scale(stats[3]))
+                    .attr("y2",y_scale(stats[4]))
+                    .attr("class","bp");
+
+                svg.append("line")
+                    .datum(stats)
+                    .attr("x1",x_scale(emp) + (x_scale.bandwidth()/2))
+                    .attr("x2",x_scale(emp) + (x_scale.bandwidth()/2))
+                    .attr("y1",y_scale(stats[0]))
+                    .attr("y2",y_scale(stats[1]))
+                    .attr("class","bp");
+
+                d3.selectAll(".bp")
+                    .style("fill","red")
+                    .style("fill-opacity","40%")
+                    .style("stroke","black")
+                    .style("stroke-width","2px")
+                    .style("visibility","hidden");
+            }
+
+            // axes
+            let x_axis = d3.axisBottom()
+                            .scale(x_scale);
+
+            let y_axis = d3.axisLeft()
+                            .scale(y_scale);
+
+            svg.append("g")
+                .attr("transform","translate(0, " + (svg_h - bottom_marg) + ")")
+                .call(x_axis)
+                .style("stroke-width","2px")
+                .style("font-size","12px");
+
+            svg.append("g")
+                .attr("transform","translate(" + left_marg + ", 0)")
+                .call(y_axis)
+                .style("stroke-width","2px")
+                .style("font-size","12px");;
+
+            svg.append("text")
+                .text("Emperor")
+                .attr("text-anchor", "middle")
+                .style("font", "18px sans-serif")
+                .attr("x", (svg_w/2))
+                .attr("y",(svg_h - bottom_marg) + (2 * bottom_marg/3));
+
+            svg.append("text")
+                .text("Coin Weight (grams)")
+                .attr("text-anchor", "middle")
+                .style("font", "18px sans-serif")
+                .attr("transform", "translate(" + (left_marg/3) + "," 
+                + (svg_h/2) + ")rotate(-90)");
+
+            // event handlers
+            function handleMouseover(event, d){
+                let x = event.pageX;
+                let y = event.pageY - 24;
+
+                d3.select("body").append("div")
+                    .html("Mint: " + d.mint)
+                    .style("position","absolute")
+                    .style("left", x + "px")
+                    .style("top", y + "px")
+                    .style("background", "white")
+                    .style("padding", "2px")
+                    .style("border", "2px solid gray")
+                    .style("font","12px sans-serif")
+                    .attr("class", "tooltip");
+            }
+
+            function handleMouseout(event){
+                d3.selectAll(".tooltip").remove();
+            }
+
+            boxplot(dataset,"Caracalla");
+
+            function handleButton(){
+                if(!boxplot_on){
+                    d3.selectAll(".bp")
+                        .style("visibility", "visible");
+                    boxplot_on = true;
+                }
+                else{
+                    d3.selectAll(".bp")
+                        .style("visibility", "hidden");
+                    boxplot_on = false;
+                }
+            }
+
+            function handleBoxplotMouseover(event, d){
+                let x = event.pageX;
+                let y = event.pageY - 80;
+
+                let text = d3.select(this).datum();
+                let content = "Min: " + text[0] + "<br>" + 
+                    "25%ile: " + text[1] + "<br>" +
+                    "50%ile: " + text[2] + "<br>" + 
+                    "75%ile: " + text[3] + "<br>" + 
+                    "Max: " + text[4];
+
+                d3.select("body").append("div")
+                    .html(content)
+                    .style("position","absolute")
+                    .style("left", x + "px")
+                    .style("top", y + "px")
+                    .style("background", "white")
+                    .style("padding", "2px")
+                    .style("border", "2px solid gray")
+                    .style("font","12px sans-serif")
+                    .attr("class", "tooltip");
+            }
+
+        </script>
+    </body>
+</html>
