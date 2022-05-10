@@ -11,6 +11,10 @@
         .input_div {
             margin-left: 20px;
         }
+
+        label {
+            font-family: sans-serif;
+        }
     </style>
     <body>
         <h1>Interactive Scatterplot</h1>
@@ -33,15 +37,23 @@
         <script type="text/javascript">
 
             // global vars
-            let boxplot_on = false;
-            let stats_by_emp = {};
+            let boxplot_on = false; // state variable for overlay
+            let stats_by_emp = {}; // store arrays of quartile stats keyed by emperor
 
             // helper functions 
+
+            /* Offset a point in the x dimension from the center of its band.
+            Return a randomly generated offset value that is at most the
+            specified value. 
+            */
             function jitter(width){
                 let sign = Math.random() < 0.5 ? -1 : 1;
                 return sign * Math.random() * width;
             }
 
+            /* Returns an array representation of a boxplot feature.
+            Array entries are quartile values.
+            */
             function boxplot(dataset, val){
                 let arr = [];
                 for(let i = 0; i < dataset.length; i++){
